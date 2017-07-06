@@ -22,6 +22,7 @@ signal data: std_logic := '0';
 signal clk: std_logic := '0';
 signal spdif_out: std_logic := '0';
 constant clk_period : time := 1 ns;
+signal frame: unsigned(7 downto 0) := "00000000";
 
 begin
 	uut: bpm PORT MAP (
@@ -33,126 +34,100 @@ begin
 		spdif_out => spdif_out,
 		z => z
 		);
+
+	--our clock, which as stated in task is twice as fast as input
 	clk_process: process
 	begin
-		clk <= '0';
-		wait for clk_period/2;
 		clk <= '1';
 		wait for clk_period/2;
+		clk <= '0';
+		wait for clk_period/2;
 	end process;
 
-	--how long the simulation should continue
-	stop_proc: process
+	--which frame we are currently at
+	frame_process: process
 	begin
-		wait for 256 ns;
-		assert false report "Simulation Finished, Exception on Purpose" severity failure;
+		frame <= frame + 1;
+		if frame = 192 then
+			frame <= "00000000";
+		end if;
+		wait for clk_period * 64;
 	end process;
 
-	stim_proc: process
+	stim_process: process
 	begin
-		wait for clk_period * 1/2;
 		--initialize 1st frame
-		p <= '0';
-		--z-preamble
-		x <= '0';
-		y <= '0';
-		z <= '1';
-		data <= '0';
-		wait for clk_period * 1;
+		if frame = "00000000" then
+			p <= '0';
+			--z-preamble
+			x <= '0';
+			y <= '0';
+			z <= '1';
+			wait for clk_period * 1;
+			x <= '0';
+			y <= '0';
+			z <= '0';
+			wait for clk_period * 7;
 
-		--data-fluss
-		x <= '0';
-		y <= '0';
-		z <= '0';
+			--data-flow
+			wait for clk_period * 48;
+
+			--control-bits
+			wait for clk_period * 6;
+			p <= '1'; --paritybit
+			wait for clk_period * 2;
+
+		--initialize x frame
+		elsif frame(0) = '0' then
+			p <= '0';
+			--x-preamble
+			x <= '1';
+			y <= '0';
+			z <= '0';
+			wait for clk_period * 1;
+			x <= '0';
+			y <= '0';
+			z <= '0';
+			wait for clk_period * 7;
+
+			--data-flow
+			wait for clk_period * 48;
+
+			--control-bits
+			wait for clk_period * 6;
+			p <= '1'; --paritybit
+			wait for clk_period * 2;
+
+		--initialize y frame
+		elsif frame(0) = '1' then
+			p <= '0';
+			--x-preamble
+			x <= '0';
+			y <= '1';
+			z <= '0';
+			wait for clk_period * 1;
+			x <= '0';
+			y <= '0';
+			z <= '0';
+			wait for clk_period * 7;
+
+			--data-flow
+			wait for clk_period * 48;
+
+			--control-bits
+			wait for clk_period * 6;
+			p <= '1'; --paritybit
+			wait for clk_period * 2;
+		end if;
+	end process;
+
+	data_process: process
+	begin
+	if data = '0' then
 		data <= '1';
-		wait for clk_period * 7;
-		wait for clk_period * 24;
+	else
 		data <= '0';
-		wait for clk_period * 24;
-
-		--control-bits
-		data <= '1';
-		wait for clk_period * 6;
-		p <= '1'; --paritybit
-		wait for clk_period * 2;
-		
-
-		--initialize 2nd frame
-		p <= '0';
-		--y-preamble
-		x <= '0';
-		y <= '1';
-		z <= '0';
-		data <= '0';
-		wait for clk_period * 1;
-
-		--data-fluss
-		x <= '0';
-		y <= '0';
-		z <= '0';
-		data <= '1';
-		wait for clk_period * 7;
-		wait for clk_period * 24;
-		data <= '0';
-		wait for clk_period * 24;
-
-		--control-bits
-		data <= '1';
-		wait for clk_period * 6;
-		p <= '1'; --paritybit
-		wait for clk_period * 2;		
-
-
-		--initialize 3rd frame
-		p <= '0';
-		--x-preamble
-		x <= '1';
-		y <= '0';
-		z <= '0';
-		data <= '0';
-		wait for clk_period * 1;
-
-		--data-fluss
-		x <= '0';
-		y <= '0';
-		z <= '0';
-		data <= '1';
-		wait for clk_period * 7;
-		wait for clk_period * 24;
-		data <= '0';
-		wait for clk_period * 24;
-
-		--control-bits
-		data <= '1';
-		wait for clk_period * 6;
-		p <= '1'; --paritybit
-		wait for clk_period * 2;		
-
-
-		--initialize 4th frame
-		p <= '0';
-		--y-preamble
-		x <= '0';
-		y <= '1';
-		z <= '0';
-		data <= '0';
-		wait for clk_period * 1;
-
-		--data-fluss
-		x <= '0';
-		y <= '0';
-		z <= '0';
-		data <= '1';
-		wait for clk_period * 7;
-		wait for clk_period * 24;
-		data <= '0';
-		wait for clk_period * 24;
-
-		--control-bits
-		data <= '1';
-		wait for clk_period * 6;
-		p <= '1'; --paritybit
-		wait for clk_period * 2;
-
+	end if;
+	wait for 2 * (to_integer(frame) + 1) * clk_period;
 	end process;
 end;
