@@ -18,11 +18,19 @@ begin
 		if rising_edge(clk) then
 			--Die folgenden Faelle behandeln alle die Weiterleitung der an 
 			--Data anliegenden Werte
-			if zustand = 0 then
+			--Aus dieser Deklaration folgt: die Zustaende 7-18 entsprechen der 				Ausgabe der Preambel X,
+			--die Zustaende 19-30 der von Y, und 31-42 der von Z
+			if x = '1' then
+				zustand <= to_unsigned(7,6);
+			elsif y = '1' then
+				zustand <= to_unsigned(19,6);
+			elsif z = '1' then
+				zustand <= to_unsigned(31,6);
+			elsif zustand = 0 then
 				if data = '0' then
-					zustand <= to_unsigned(1,6);
-				else
 					zustand <= to_unsigned(2,6);
+				else
+					zustand <= to_unsigned(1,6);
 				end if;
 			elsif zustand = 1 then
 				if p = '0' then
@@ -37,10 +45,10 @@ begin
 					zustand <= to_unsigned(5,6);
 				end if;
 			elsif zustand = 3 then
-				if data = '1' then 
-					zustand <= to_unsigned(2,6);
-				else
+				if data = '0' then 
 					zustand <= to_unsigned(1,6);
+				else
+					zustand <= to_unsigned(2,6);
 				end if;
 			--Die folgenden Faelle sind fuer die Generierung des Parity-Bits 
 			--verantwortlich
@@ -48,21 +56,13 @@ begin
 				zustand <= to_unsigned(6,6);
 			--tritt einer der drei folgenden Faelle auf, befinden wir uns
 			--(unter Annahme gueltiger Eingaben) stets in Zustand 6 oder am Programmstart
-			--Aus dieser Deklaration folgt: die Zustaende 7-18 entsprechen der Ausgabe der Preambel X,
-			--die Zustaende 19-30 der von Y, und 31-42 der von Z
-			elsif x = '1' then
-				zustand <= to_unsigned(7,6);
-			elsif y = '1' then
-				zustand <= to_unsigned(19,6);
-			elsif z = '1' then
-				zustand <= to_unsigned(31,6);
 			--falls die Ausgabe einer jeweiligen Preambel zu Ende geht
 			elsif zustand = 18 or zustand = 30 or zustand = 42 then
 				zustand <= to_unsigned(3,6);
 			--alle Faelle, bei denen bei einer Preambel ein Uebergang von '1' auf '0'
 			--oder von '0' auf '1' auftritt
-			elsif zustand = 11 or zustand = 16 or zustand = 17 or zustand = 24 or zustand = 26
-			or zustand = 27 or zustand = 35 or zustand = 36 or zustand = 37 then
+			elsif zustand = 11 or zustand = 16 or zustand = 17 or zustand = 23 or zustand = 26
+			or zustand = 26 or zustand = 27 or zustand = 35 or zustand = 36 or zustand = 37 then
 				zustand <= zustand + to_unsigned(1,6);
 			--alle Faelle, bei denen bei einer Preambel der Wert des letzten Taktes mit dem
 			--Wert des neuen Taktes uebereinstimmt
